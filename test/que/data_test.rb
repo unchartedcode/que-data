@@ -1,11 +1,7 @@
 require "test_helper"
 
-class Que::DataTest < Minitest::Test
-  def test_that_it_has_a_version_number
-    refute_nil ::Que::Data::VERSION
-  end
-
-  def test_it_does_something_useful
-    assert false
+describe Que::Data do
+  it "has a version number" do
+    ::Que::Data::VERSION.wont_be_nil
   end
 end
