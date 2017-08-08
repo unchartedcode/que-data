@@ -48,13 +48,6 @@ module Que
       def update_data(*args)
         self.class.update_data(attrs[:job_id], **args)
       end
-
-      def _run(*args)
-        @data = retrieve_data
-        super
-      end
     end
   end
 end
-
-Que::Job.prepend Que::Data::Extension
