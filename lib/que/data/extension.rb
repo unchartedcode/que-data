@@ -51,12 +51,22 @@ module Que
 
       def _run(*args)
         Que.execute(Que::Data::SQL[:update_status], [attrs[:job_id], 'working', 'started_at'])
-
         super
+      end
 
+      def _destroy
+        Que.execute :destroy_job, attrs.values_at(:queue, :priority, :run_at, :job_id)
+        @destroyed = true
+      end
+
+      private
+      
+      def destroy
         if @_error.nil?
           Que.execute(Que::Data::SQL[:update_status], [attrs[:job_id], 'complete', 'completed_at'])
         end
+        
+        _destroy
       end
 
       def handle_error(error)

@@ -3,23 +3,17 @@ require "test_helper"
 describe 'status' do
   before do
     DB[:que_jobs].delete
-  end
-
-  class FakeDestroyJob < Que::Job
-    def destroy
-      # Fake destroy so the entry stays
-      @destroyed = true
-    end
+    DB[:que_history].delete
   end
 
   it "it starts out as queued" do
-    job = FakeDestroyJob.enqueue
+    job = HistoryJob.enqueue
     job.attrs[:job_id].wont_be_nil
     DB[:que_jobs].count.must_equal 1
     DB[:que_jobs].first[:status].must_equal 'queued'
   end
 
-  class WorkingJob < FakeDestroyJob
+  class WorkingJob < HistoryJob
     def run(*args)
       DB[:que_jobs].first[:status].must_equal 'working'
     end
@@ -31,13 +25,15 @@ describe 'status' do
     DB[:que_jobs].count.must_equal 1
     result = Que::Job.work
     result[:event].must_equal :job_worked, result[:error]
-    data = JSON.parse(DB[:que_jobs].first[:data])
+    DB[:que_jobs].count.must_equal 0
+    DB[:que_history].count.must_equal 1
+    data = JSON.parse(DB[:que_history].first[:data])
     data.dig('status','started_at').wont_be_nil
     data.dig('status','errored_at').must_be_nil
     data.dig('status','completed_at').wont_be_nil
   end
 
-  class CompleteJob < FakeDestroyJob
+  class CompleteJob < HistoryJob
     def run(*args)
     end
   end
@@ -48,14 +44,16 @@ describe 'status' do
     DB[:que_jobs].count.must_equal 1
     result = Que::Job.work
     result[:event].must_equal :job_worked, result[:error]
-    DB[:que_jobs].first[:status].must_equal 'complete'
-    data = JSON.parse(DB[:que_jobs].first[:data])
+    DB[:que_jobs].count.must_equal 0
+    DB[:que_history].count.must_equal 1
+    DB[:que_history].first[:status].must_equal 'complete'
+    data = JSON.parse(DB[:que_history].first[:data])
     data.dig('status','started_at').wont_be_nil
     data.dig('status','errored_at').must_be_nil
     data.dig('status','completed_at').wont_be_nil
   end
 
-  class ErrorJob < FakeDestroyJob
+  class ErrorJob < HistoryJob
     def run(*args)
       fail 'nope'
     end
@@ -67,6 +65,8 @@ describe 'status' do
     DB[:que_jobs].count.must_equal 1
     result = Que::Job.work
     result[:event].must_equal :job_errored, result[:error]
+    DB[:que_jobs].count.must_equal 1
+    DB[:que_history].count.must_equal 0
     DB[:que_jobs].first[:status].must_equal 'error'
     data = JSON.parse(DB[:que_jobs].first[:data])
     data.dig('status','started_at').wont_be_nil

@@ -4,16 +4,10 @@ require "byebug"
 describe Que::Data::Extension do
   before do
     DB[:que_jobs].delete
+    DB[:que_history].delete
   end
 
-  class FakeDestroyJob < Que::Job
-    def destroy
-      # Fake destroy so the entry stays
-      @destroyed = true
-    end
-  end
-
-  class TestUpdateJobSection < FakeDestroyJob
+  class TestUpdateJobSection < HistoryJob
     def run(*args)
       update_data({ test: '1' }, section: 'section')
     end
@@ -24,12 +18,13 @@ describe Que::Data::Extension do
     job.attrs[:job_id].wont_be_nil
     result = Que::Job.work
     result[:event].must_equal :job_worked, result[:error]
-    DB[:que_jobs].count.must_equal 1
-    data = JSON.parse(DB[:que_jobs].first[:data])
+    DB[:que_jobs].count.must_equal 0
+    DB[:que_history].count.must_equal 1
+    data = JSON.parse(DB[:que_history].first[:data])
     data['section'].must_equal({"test" => "1"})
   end
 
-  class TestUpdateJobSectionProperty < FakeDestroyJob
+  class TestUpdateJobSectionProperty < HistoryJob
     def run(*args)
       update_data('1', section: 'section', property: 'test')
     end
@@ -40,12 +35,13 @@ describe Que::Data::Extension do
     job.attrs[:job_id].wont_be_nil
     result = Que::Job.work
     result[:event].must_equal :job_worked, result[:error]
-    DB[:que_jobs].count.must_equal 1
-    data = JSON.parse(DB[:que_jobs].first[:data])
+    DB[:que_jobs].count.must_equal 0
+    DB[:que_history].count.must_equal 1
+    data = JSON.parse(DB[:que_history].first[:data])
     data.dig('section', 'test').must_equal '1'
   end
 
-  class TestUpdateJobSectionMultipleProperties < FakeDestroyJob
+  class TestUpdateJobSectionMultipleProperties < HistoryJob
     def run(*args)
       update_data('1', section: 'section', property: 'test1')
       update_data('1', section: 'section', property: 'test2')
@@ -57,13 +53,14 @@ describe Que::Data::Extension do
     job.attrs[:job_id].wont_be_nil
     result = Que::Job.work
     result[:event].must_equal :job_worked, result[:error]
-    DB[:que_jobs].count.must_equal 1
-    data = JSON.parse(DB[:que_jobs].first[:data])
+    DB[:que_jobs].count.must_equal 0
+    DB[:que_history].count.must_equal 1
+    data = JSON.parse(DB[:que_history].first[:data])
     data.dig('section', 'test1').must_equal '1'
     data.dig('section', 'test2').must_equal '1'
   end
 
-  class TestRetrieveData < FakeDestroyJob
+  class TestRetrieveData < HistoryJob
     class << self
       @retrieved_data = nil
       attr_accessor :retrieved_data

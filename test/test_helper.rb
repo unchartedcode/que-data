@@ -4,7 +4,6 @@ require 'logger'
 require 'pg'
 require 'que/data'
 require 'minitest/autorun'
-
 require 'minitest/reporters'
 Minitest::Reporters.use! Minitest::Reporters::SpecReporter.new
 
@@ -51,5 +50,26 @@ DB = Sequel.connect(QUE_URL)
 
 # Reset the table to the most up-to-date version.
 DB.drop_table? :que_jobs
+DB.drop_table? :que_history
 Que::Migrations.migrate!
 Que::Data::Migrations.migrate!
+
+Que.execute "CREATE TABLE que_history AS SELECT * FROM que_jobs LIMIT 0"
+
+class HistoryJob < Que::Job
+  def _destroy
+    sql = <<-SQL
+      WITH job AS (
+        DELETE
+        FROM   que_jobs
+        WHERE  job_id   = $1::bigint
+        RETURNING *
+      )
+      INSERT INTO que_history
+      SELECT * FROM job;
+    SQL
+
+    Que.execute sql, @attrs.values_at(:job_id)
+    @destroyed = true
+  end
+end
