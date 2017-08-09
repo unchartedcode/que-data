@@ -11,7 +11,7 @@ module Que
           if results.size != 1
             raise "Unable to find a data result"
           else
-            
+
           end
           JSON.parse(results.first[:data])
         end
@@ -38,7 +38,7 @@ module Que
       def self.prepended(base)
         class << base
           prepend ClassMethods
-        end  
+        end
       end
 
       def retrieve_data
@@ -46,8 +46,25 @@ module Que
       end
 
       def update_data(*args)
-        self.class.update_data(attrs[:job_id], **args)
+        self.class.update_data(attrs[:job_id], *args)
+      end
+
+      def _run(*args)
+        Que.execute(Que::Data::SQL[:status_started], [attrs[:job_id]])
+
+        super
+
+        if @_error.nil?
+          Que.execute(Que::Data::SQL[:status_complete], [attrs[:job_id]])
+        end
+      end
+
+      def handle_error(error)
+        Que.execute(Que::Data::SQL[:status_error], [attrs[:job_id]])
+        super
       end
     end
   end
 end
+
+Que::Job.prepend Que::Data::Extension

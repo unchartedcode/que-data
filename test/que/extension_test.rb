@@ -5,7 +5,7 @@ describe Que::Data::Extension do
   before do
     DB[:que_jobs].delete
   end
-  
+
   class FakeDestroyJob < Que::Job
     def destroy
       # Fake destroy so the entry stays
@@ -43,7 +43,7 @@ describe Que::Data::Extension do
     DB[:que_jobs].first[:data].must_equal(%({"section": {"test": "1"}}))
   end
 
-  class TestUpdateJobSectionProperty < FakeDestroyJob 
+  class TestUpdateJobSectionProperty < FakeDestroyJob
     def run(*args)
       update_data('1', section: 'section', property: 'test')
     end
