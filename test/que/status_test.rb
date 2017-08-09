@@ -33,6 +33,8 @@ describe 'status' do
     result[:event].must_equal :job_worked, result[:error]
     data = JSON.parse(DB[:que_jobs].first[:data])
     data.dig('status','started_at').wont_be_nil
+    data.dig('status','errored_at').must_be_nil
+    data.dig('status','completed_at').wont_be_nil
   end
 
   class CompleteJob < FakeDestroyJob

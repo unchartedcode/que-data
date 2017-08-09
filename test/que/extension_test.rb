@@ -13,21 +13,6 @@ describe Que::Data::Extension do
     end
   end
 
-  class TestUpdateJob < FakeDestroyJob
-    def run(*args)
-      update_data({ test: '1' })
-    end
-  end
-
-  it "it can update data" do
-    job = TestUpdateJob.enqueue
-    job.attrs[:job_id].wont_be_nil
-    result = Que::Job.work
-    result[:event].must_equal :job_worked, result[:error]
-    DB[:que_jobs].count.must_equal 1
-    DB[:que_jobs].first[:data].must_equal(%({"test": "1"}))
-  end
-
   class TestUpdateJobSection < FakeDestroyJob
     def run(*args)
       update_data({ test: '1' }, section: 'section')
@@ -40,7 +25,8 @@ describe Que::Data::Extension do
     result = Que::Job.work
     result[:event].must_equal :job_worked, result[:error]
     DB[:que_jobs].count.must_equal 1
-    DB[:que_jobs].first[:data].must_equal(%({"section": {"test": "1"}}))
+    data = JSON.parse(DB[:que_jobs].first[:data])
+    data['section'].must_equal({"test" => "1"})
   end
 
   class TestUpdateJobSectionProperty < FakeDestroyJob
@@ -55,7 +41,26 @@ describe Que::Data::Extension do
     result = Que::Job.work
     result[:event].must_equal :job_worked, result[:error]
     DB[:que_jobs].count.must_equal 1
-    DB[:que_jobs].first[:data].must_equal(%({"section": {"test": "1"}}))
+    data = JSON.parse(DB[:que_jobs].first[:data])
+    data.dig('section', 'test').must_equal '1'
+  end
+
+  class TestUpdateJobSectionMultipleProperties < FakeDestroyJob
+    def run(*args)
+      update_data('1', section: 'section', property: 'test1')
+      update_data('1', section: 'section', property: 'test2')
+    end
+  end
+
+  it "it can update a property in a section" do
+    job = TestUpdateJobSectionMultipleProperties.enqueue
+    job.attrs[:job_id].wont_be_nil
+    result = Que::Job.work
+    result[:event].must_equal :job_worked, result[:error]
+    DB[:que_jobs].count.must_equal 1
+    data = JSON.parse(DB[:que_jobs].first[:data])
+    data.dig('section', 'test1').must_equal '1'
+    data.dig('section', 'test2').must_equal '1'
   end
 
   class TestRetrieveData < FakeDestroyJob
@@ -71,9 +76,9 @@ describe Que::Data::Extension do
 
   it "it can retrieve data" do
     job = TestRetrieveData.enqueue
-    Que.execute(Que::Data::SQL[:update], [job.attrs[:job_id], { "test" => "1" }])
+    Que.execute(Que::Data::SQL[:update_section], [job.attrs[:job_id], '{section}', { test: '1' }])
     result = Que::Job.work
     result[:event].must_equal :job_worked, result[:error]
-    TestRetrieveData.retrieved_data.must_equal({ "test" => "1" })
+    TestRetrieveData.retrieved_data.dig('section', 'test').must_equal '1'
   end
 end

@@ -16,7 +16,7 @@ module Que
           JSON.parse(results.first[:data])
         end
 
-        def update_data(job_id, value, section: nil, property: nil)
+        def update_data(job_id, value, section:, property: nil)
           if job_id.nil?
             raise "Unable to update data without a job_id"
           end
@@ -31,7 +31,7 @@ module Que
             return
           end
 
-          Que.execute(Que::Data::SQL[:update_section_property], [job_id, section, property, value])
+          Que.execute(Que::Data::SQL[:update_section_property], [job_id, "{#{section}}", section, property, value])
         end
       end
 
@@ -50,17 +50,17 @@ module Que
       end
 
       def _run(*args)
-        Que.execute(Que::Data::SQL[:status_started], [attrs[:job_id]])
+        Que.execute(Que::Data::SQL[:update_status], [attrs[:job_id], 'working', 'started_at'])
 
         super
 
         if @_error.nil?
-          Que.execute(Que::Data::SQL[:status_complete], [attrs[:job_id]])
+          Que.execute(Que::Data::SQL[:update_status], [attrs[:job_id], 'complete', 'completed_at'])
         end
       end
 
       def handle_error(error)
-        Que.execute(Que::Data::SQL[:status_error], [attrs[:job_id]])
+        Que.execute(Que::Data::SQL[:update_status], [attrs[:job_id], 'error', 'errored_at'])
         super
       end
     end
