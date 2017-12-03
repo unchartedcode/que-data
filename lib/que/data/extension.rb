@@ -1,3 +1,5 @@
+require 'que'
+
 module Que
   module Data
     module Extension
@@ -60,12 +62,12 @@ module Que
       end
 
       private
-      
+
       def destroy
         if @_error.nil?
           Que.execute(Que::Data::SQL[:update_status], [attrs[:job_id], 'complete', 'completed_at'])
         end
-        
+
         _destroy
       end
 
